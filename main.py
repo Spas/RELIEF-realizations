@@ -81,6 +81,7 @@ def use_relief(data, steps_count=0):
         for i in xrange(steps_count):
             pass
 
+    weights = [data[0], weights]
     return weights
 
 if __name__ == "__main__":
