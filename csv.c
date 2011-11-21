@@ -1,0 +1,168 @@
+/* 
+ * File:   csv.c
+ * Author: spas
+ *
+ * Created on 17 Октябрь 2011 г., 9:29
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "csv.h"
+
+#define MIN_STRING_LENGTH 20
+
+void get_csv_matrix_size(FILE* file, 
+                         int* head_string_length, 
+                         int* head_string_element_length,
+                         int* values_string_length,
+                         int* values_string_element_length,
+                         int* features_count,
+                         int* rows_count) {
+    char  symbol;
+    int   symbols_count = 0;
+    int   column_symbols_count = 0;
+    
+    *head_string_length = 0;
+    *head_string_element_length = 0;
+    *values_string_length = 0;
+    *values_string_element_length = 0;
+    *features_count = 0;
+    *rows_count = 0;
+    
+    if (file == NULL) {
+        perror ("Cannot process null file (get_csv_matrix_size)");
+    }
+    else {
+        // Минус текущей реализации - если первая строка файла пустая - ничего работать не будет.
+        while ((symbol = fgetc(file)) != EOF) {
+            if (*head_string_length == 0) {
+                // Для строки заголовков также надо найти наибольшую длинну названия колонки
+                if (symbol == ',') {
+                    if (column_symbols_count > *head_string_element_length) {
+                        *head_string_element_length = column_symbols_count;
+                    }
+                    column_symbols_count = 0;
+                    (*features_count)++; // Инкрементируем количество колонок при нахождении каждого разделителя (базово - ',')
+                }
+                column_symbols_count++;
+            } 
+            else {
+                // Для строки значения также надо найти наибольшую длинну
+                if (symbol == ',') {
+                    if (column_symbols_count > *values_string_element_length) {
+                        (*values_string_element_length) = column_symbols_count;
+                    }
+                    column_symbols_count = 0;
+                }
+                column_symbols_count++;
+            }
+            if (symbol == '\n' || symbol == '\0') {
+                if (*head_string_length == 0) {
+                    *rows_count = 0; // Заголовочную строку не считаем
+                    *head_string_length = symbols_count + 1; // +1 - запас карман не тянет, мало ли
+                } 
+                else {
+                    (*rows_count)++; // Инкрементируем количество строк
+                    if (symbols_count > *values_string_length) {
+                        *values_string_length = symbols_count + 1; // Если длина текущей строки больше максимальной найдённой - заменяем
+                    }
+                }
+                symbols_count = 0; // Начало подсчёта количества симоволов в следующей строке
+                column_symbols_count = 0; // Также обнуляем длину значения в текущей ячейке (до разделителя)
+            }
+            symbols_count++; // Инкрементация количества символо в строке
+        }
+        rewind(file);
+    }
+}
+
+void read_from_csv(FILE* file, 
+                   char** features_names, 
+                   float** features_values,
+                   int* classes,
+                   int head_string_length, int head_element_length,
+                   int values_string_length, int value_element_length,
+                   int features_count, int rows_count) {
+    
+    char  *head_string;
+    char  *values_string;
+    int   feature_index, string_index;
+    char* feature_name;
+    char* feature_value;
+    
+    
+    // Запись данных из заголовочной строки в массив features_names
+    head_string = (char*) calloc(head_string_length, sizeof(char));
+    feature_name = (char*) calloc(head_element_length, sizeof(char));
+
+    fgets(head_string, head_string_length, file);
+
+    feature_index = 0;
+    feature_name = strtok(head_string," ,");
+    while (feature_name != NULL) {
+        features_names[feature_index] = feature_name;
+        feature_name = strtok(NULL, " ,");
+        feature_index++;
+    }
+    
+    
+    // feature_index - сюда было записано количество колонок со значениями
+    values_string = (char*) calloc(values_string_length, sizeof(char));
+    feature_value = (char*) calloc(value_element_length, sizeof(char));
+    
+    string_index = 0;
+
+    while (!feof(file)) {
+        fgets(values_string, values_string_length, file);
+
+        if (strlen(values_string) < MIN_STRING_LENGTH) {
+            continue;
+        }
+        
+        feature_index = 0;
+        feature_value = strtok(values_string," ,");
+        
+        while ((feature_index <= features_count) && (feature_value != NULL)) {
+            if (feature_index == features_count) {
+                classes[string_index] = atoi(feature_value);
+            } else {
+                features_values[string_index][feature_index] = atof(feature_value);
+            }
+            feature_index++;
+            feature_value = strtok(NULL," ,");
+        }
+        
+        string_index++;
+    }
+}
+
+
+void write_weights_to_csv(FILE *file, 
+                          char** features_names,
+                          float* features_weights,
+                          int features_count) {
+    
+    int feature_index = 0;
+    while (feature_index < features_count) {
+        if (feature_index == 0) {
+            fprintf(file, "%s", features_names[feature_index]);
+        } else {
+            fprintf(file, ",%s", features_names[feature_index]);
+        }
+        feature_index++;
+    }
+    fputc('\n', file);
+    
+    feature_index = 0;
+    while (feature_index < features_count) {
+        if (feature_index == 0) {
+            fprintf(file, "%f", features_weights[feature_index]);
+        } else {
+            fprintf(file, ",%f", features_weights[feature_index]);
+        }
+        feature_index++;
+    }
+    fputc('\n', file);
+}
