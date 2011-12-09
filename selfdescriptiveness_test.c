@@ -3,6 +3,19 @@
 #include "selfdescriptiveness_test.h"
 #include "selfdescriptiveness.h"
 
+void full_descriptiveness_test() {
+    int classes_count = 2;
+    int* c_elements_count = malloc(classes_count * sizeof(int));
+    c_elements_count[0] = 200;
+    c_elements_count[1] = 100;
+    
+    int* c_f_elements_count = malloc(classes_count * sizeof(int));
+    c_f_elements_count[0] = 100;
+    c_f_elements_count[1] = 0;
+    
+    printf("IGain = %f\n", entropic_descriptiveness_full(c_elements_count, c_f_elements_count, classes_count, 300, 100));
+}
+
 void selfdescriptiveness_test() {
     int c_elements_count;
     int nc_elements_count;

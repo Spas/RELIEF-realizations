@@ -13,6 +13,142 @@
 
 #define MIN_STRING_LENGTH 20
 
+// public
+void read_data_from_csv(char* file_name,
+                        char*** features_names,   // reference to 1d strings array
+                        float*** features_values, // reference to 2d float array
+                        int** classes,            // reference to 1d int array
+                        int* features_count,      // reference to features count
+                        int* rows_count)          // reference to rows count
+{        
+    int head_string_length, head_string_element_length;
+    int values_string_length, values_string_element_length;
+    
+    char *head_string, *feature_name;
+    char *values_string, *feature_value;
+    int row_index, feature_index;
+    
+    FILE* file = fopen(file_name , "r");
+    if (file == NULL) {
+        perror ("Error opening data file");
+    }
+    else {
+        get_csv_matrix_size(file, 
+                            &head_string_length,
+                            &head_string_element_length,
+                            &values_string_length,
+                            &values_string_element_length,
+                            features_count, rows_count);
+        // Выделяем память под массивы features_names, classes и features_values
+        (*features_names) = (char**) calloc(head_string_length * head_string_element_length, sizeof(char*));
+        (*classes) = (int*) calloc((*rows_count), sizeof(int));
+        (*features_values) = (float**) calloc((*rows_count) * (*features_count), sizeof(float*));
+
+        // Также надо каждую строку надо определить как массив float-ов (или segmentation fault будет)
+        while (row_index < *rows_count) {
+            (*features_values)[row_index] = (float*) calloc((*features_count), sizeof(float));
+            row_index++;
+        }
+        
+        // Также необходимо выделить память под каждый элемент заголовка
+        while (feature_index < *features_count) {
+            (*features_names)[feature_index] = (char*) calloc(head_string_element_length, sizeof(char));
+            feature_index++;
+        }
+        
+        // Считываем и парсим строку заголовка
+        head_string = (char*) calloc(head_string_length, sizeof(char));
+        feature_name = (char*) calloc(head_string_element_length, sizeof(char));
+        fgets(head_string, head_string_length, file);
+
+        feature_index = 0;
+        feature_name = strtok(head_string," ,");
+        while (feature_name != NULL) {
+            (*features_names)[feature_index] = feature_name;
+            feature_name = strtok(NULL, " ,");
+            feature_index++;
+        }
+        free(head_string);
+        free(feature_name);
+
+        // Считываем и парсим значения параметров и классов
+        values_string = (char*) calloc(values_string_length, sizeof(char));
+        feature_value = (char*) calloc(values_string_element_length, sizeof(char));
+
+        row_index = 0;
+        while (!feof(file)) {
+            fgets(values_string, values_string_length, file);
+
+            // Отсеивание пустых строк
+            if (strlen(values_string) < MIN_STRING_LENGTH) {
+                continue;
+            }
+
+            feature_index = 0;
+            feature_value = strtok(values_string," ,");
+
+            while ((feature_index <= *features_count) && (feature_value != NULL)) {
+                if (feature_index == *features_count) {
+                    (*classes)[row_index] = atoi(feature_value);
+                } else {
+                    (*features_values)[row_index][feature_index] = atof(feature_value);
+                }
+                feature_index++;
+                feature_value = strtok(NULL," ,");
+            }
+
+            row_index++;
+        }
+        free(values_string);
+        free(feature_value);
+        fclose(file);
+    }
+}
+
+void write_data_to_csv(char* file_name,
+                       char** features_names,
+                       float** features_values,
+                       int* classes,
+                       int features_count,
+                       int rows_count) 
+{
+    int feature_index, row_index;
+    
+    FILE  *file = fopen(file_name , "w");
+    if (file == NULL) {
+        perror ("Error opening file");
+    }
+    else {
+        feature_index = 0;
+        while (feature_index < features_count) {
+            if (feature_index == 0) {
+                fprintf(file, "%s", features_names[feature_index]);
+            } else {
+                fprintf(file, ",%s", features_names[feature_index]);
+            }
+            feature_index++;
+        }
+        fprintf(file, ",class\n");
+
+        row_index = 0;
+        while (row_index < rows_count) {
+            feature_index = 0;
+            while (feature_index < features_count) {
+                if (feature_index == 0) {
+                    fprintf(file, "%f", features_values[row_index][feature_index]);
+                } else {
+                    fprintf(file, ",%f", features_values[row_index][feature_index]);
+                }
+                feature_index++;
+            }
+            fprintf(file, ",%d\n", classes[row_index]);
+            row_index++;
+        }
+        fclose(file);
+    }
+}
+
+// private
 void get_csv_matrix_size(FILE* file, 
                          int* head_string_length, 
                          int* head_string_element_length,
@@ -77,67 +213,6 @@ void get_csv_matrix_size(FILE* file,
         rewind(file);
     }
 }
-
-void read_from_csv(FILE* file, 
-                   char** features_names, 
-                   float** features_values,
-                   int* classes,
-                   int head_string_length, int head_element_length,
-                   int values_string_length, int value_element_length,
-                   int features_count, int rows_count) {
-    
-    char  *head_string;
-    char  *values_string;
-    int   feature_index, string_index;
-    char* feature_name;
-    char* feature_value;
-    
-    
-    // Запись данных из заголовочной строки в массив features_names
-    head_string = (char*) calloc(head_string_length, sizeof(char));
-    feature_name = (char*) calloc(head_element_length, sizeof(char));
-
-    fgets(head_string, head_string_length, file);
-
-    feature_index = 0;
-    feature_name = strtok(head_string," ,");
-    while (feature_name != NULL) {
-        features_names[feature_index] = feature_name;
-        feature_name = strtok(NULL, " ,");
-        feature_index++;
-    }
-    
-    
-    // feature_index - сюда было записано количество колонок со значениями
-    values_string = (char*) calloc(values_string_length, sizeof(char));
-    feature_value = (char*) calloc(value_element_length, sizeof(char));
-    
-    string_index = 0;
-
-    while (!feof(file)) {
-        fgets(values_string, values_string_length, file);
-
-        if (strlen(values_string) < MIN_STRING_LENGTH) {
-            continue;
-        }
-        
-        feature_index = 0;
-        feature_value = strtok(values_string," ,");
-        
-        while ((feature_index <= features_count) && (feature_value != NULL)) {
-            if (feature_index == features_count) {
-                classes[string_index] = atoi(feature_value);
-            } else {
-                features_values[string_index][feature_index] = atof(feature_value);
-            }
-            feature_index++;
-            feature_value = strtok(NULL," ,");
-        }
-        
-        string_index++;
-    }
-}
-
 
 void write_weights_to_csv(FILE *file, 
                           char** features_names,

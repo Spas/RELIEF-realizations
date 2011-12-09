@@ -21,10 +21,19 @@ float heuristic_descriptiveness(int c_elements_count,
                                 int nc_elements_count,
                                 int nc_f_elements_count);
 
+float statistical_descriptiveness_full(int* c_elements_count, int* c_f_elements_count,
+                                       int classes_count,
+                                       int c_total_elements, int c_f_total_elements);
+
 float statistical_descriptiveness(int c_elements_count, 
                                   int c_f_elements_count,
                                   int nc_elements_count,
                                   int nc_f_elements_count);
+
+float entropic_descriptiveness_full(int* c_elements_count, int* c_f_elements_count,
+                                    int classes_count,
+                                    int c_total_elements, int c_f_total_elements);
+
 
 float entropic_descriptiveness(int c_elements_count, 
                                int c_f_elements_count,
