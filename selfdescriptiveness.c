@@ -77,7 +77,7 @@ float entropic_descriptiveness_full(int* c_elements_count, int* c_f_elements_cou
                                     int classes_count, 
                                     int c_total_elements, int c_f_total_elements) {
     int i;
-    float d, result;
+    float d;
     float el1 = 0, el2 = 0, el3 = 0;
     if ((c_total_elements == -1) || (c_f_total_elements == -1)) {
         i = 0;
@@ -149,23 +149,27 @@ float selection_entropy(int c_elements_count, int nc_elements_count) {
 // Определим таблицу с логарифмами всех факториалов от 1 до n. 
 // Не стоит использовать для больших n. Специально сделал в базовой версии 
 // возможность определения только одной такой таблицы.
-int log_factorials_table_defined;
-float* log_factorials_table;
+int log_fact_table_defined;
+float* log_fact_table;
 
 // TESTED 07.12.2011
-int define_log_table(int n) {
-    if (!log_factorials_table_defined) {
-        log_factorials_table_defined = 1;
-        log_factorials_table = malloc(n * sizeof(float));
-        log_factorials_table[0] = 0;
+int define_log_fact_table(int n) {
+    if (!log_fact_table_defined) {
+        log_fact_table_defined = 1;
+        log_fact_table = malloc(n * sizeof(float));
+        log_fact_table[0] = 0;
         // Вот тут можно запутаться - т.к. в рекуррентной формуле логарифмов 
         // факториалов считаются элементы с 0-го, а у нас с 1-го
         int i = 1;
         while (i < n) {
-            log_factorials_table[i] = log_factorials_table[i - 1] + log(i + 1);
+            log_fact_table[i] = log_fact_table[i - 1] + log(i + 1);
             i++;
         }
     }
+}
+
+int clear_log_fact_table() {
+    free(log_fact_table);
 }
 
 // Реализация вычисления логарифма от факториала по формуле Стирлинга если n > 10,
@@ -174,8 +178,8 @@ int define_log_table(int n) {
 float log_fact(int n) {
     float result = 0;
     if (n <= 10) {
-        define_log_table(10);
-        result = log_factorials_table[n - 1];
+        define_log_fact_table(10);
+        result = log_fact_table[n - 1];
     } else {
         // Тут используем формулу Стирлинга. 
         // С ростом n точность вычислений повышается

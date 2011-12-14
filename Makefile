@@ -1,14 +1,11 @@
-main: main.o selfdescriptiveness.o selfdescriptiveness_test.o
-	cc -o main main.o selfdescriptiveness.o selfdescriptiveness_test.o -lm
+main: main.o binarization.o
+	gcc -o main main.o binarization.o -lm -O3
 
 main.o: main.c
-	cc -c main.c
+	gcc -c main.c -O3 -lm
+	
+binarization.o: binarization.c
+	gcc -c binarization.c -O3 -lm
 
-selfdescriptiveness.o: selfdescriptiveness.c
-	cc -c selfdescriptiveness.c
-	
-selfdescriptiveness_test.o: selfdescriptiveness_test.c
-	cc -c selfdescriptiveness_test.c
-	
 clean:
 	rm -rf *o main

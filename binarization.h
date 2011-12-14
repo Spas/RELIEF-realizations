@@ -12,7 +12,23 @@
 extern "C" {
 #endif
 
+struct segment_full_f {
+    float start;
+    float end;
+    float* values;
+    // Общее количество значений, которое покрывает отрезок.
+    int values_count;
+    // Количество элементов отрезка, соответствующих классу class.
+    int class_elements_count;
+    int class;
+};
 
+struct feature_value_class {
+    float feature_value;
+    int class;
+};
+
+void binarize_by_stat(struct feature_value_class* feature_values, int rows_count, struct segment_full_f** result);
 
 
 #ifdef	__cplusplus
