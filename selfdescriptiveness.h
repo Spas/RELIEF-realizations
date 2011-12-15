@@ -12,6 +12,11 @@
 extern "C" {
 #endif
 
+// Pc - число объектов класса с в выборке (c_elements_count)
+// pc(f) - из них число объектов, для которых выполняется условие f(x) = 1 (c_f_elements_count)
+// Nc - число объектов всех остальных классов (nc_elements_count)
+// nc(f) - из них число объектов, на которых выполняется условие f(x) = 1 (nc_f_elements_count)
+    
 float selection_entropy(int c_elements_count, int nc_elements_count);
 
 float selection_entropy_opt(int c_elements_count, int nc_elements_count);

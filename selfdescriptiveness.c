@@ -31,6 +31,8 @@ float statistical_descriptiveness_full(int* c_elements_count, int* c_f_elements_
         c_total_elements = 0;
         c_f_total_elements = 0;
         while (i < classes_count) {
+            printf("c_elements_count[%d] = %d\n", i, c_elements_count[i]);
+            printf("c_f_elements_count[%d] = %d\n", i, c_f_elements_count[i]);
             c_total_elements += c_elements_count[i];
             c_f_total_elements += c_f_elements_count[i];
             result -= log_fact(c_elements_count[i])

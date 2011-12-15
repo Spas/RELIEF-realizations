@@ -19,6 +19,10 @@ struct segment_full_f {
     int class;
 };
 
+struct class_data {
+    int class;
+    int elements_count;
+};
 
 // Функция для слияния тройки сегментов.
 struct segment_full_f concat_full_segments(struct segment_full_f segment1,
@@ -52,8 +56,15 @@ int compare_fvc(const void * a, const void * b) {
     }
 }
 
+// Стоит строить карту разбиения на отрезки. Вопрос - в каком виде карта
+// удобнее всего хранится и как можно на основе неё переформулировать задачу поиска предикатов.
+// Возможно рассмотрения разных способов представления карты разбиения для разных видов целевых функций.
+
+// Для статьи - стоит рассмотреть применение бустинга, бэггинга и МСП к задачам, которые рассмотривал Дюк в своей статье.
+// Написать выкладки по тому, как улучшатся результаты.
+
 // Функция дискретизации массива значений по соответствию ему класса и функции оценки статистической информативности.
-void binarize_by_stat(struct feature_value_class* feature_values, int rows_count, struct segment_full_f** result) {
+void binarize_by_stat(struct feature_value_class* feature_values, int rows_count, int classes_count, struct segment_full_f** result) {
     // Для разбиения на отрезки надо, по идее, отсортировать все значения. 
     // Попытка интеграции алгоритмов бинаризации и сортировки НЕ ДАСТ прироста в производительности.
     // То есть производительность результирующего алгоритма, вообще говоря, будет НЕ ЛУЧШЕ, чем
@@ -72,31 +83,33 @@ void binarize_by_stat(struct feature_value_class* feature_values, int rows_count
     (*result) = (struct segment_full_f*) malloc(rows_count * sizeof(struct segment_full_f));
     
     struct segment_full_f tmp_segment;
-    int row_index, segment_index, segment_value_index, segment_values_count;
+    int row_index, segment_index, segment_value_index, class_index;
+    int segments_count;
     
     tmp_segment.start = -INFINITY;
     
     segment_index = 0;
-    segment_values_count = 0;
+    segment_value_index = 0;
     
     // tmp_segment_values введен для экономии памяти - не надо для каждого отрезка 
     // под массив значений выделять память, как будто каждый отрезок содержит все элементы.
     // Сократим затраты памяти на хранение таких массивов с rows_count^2 до rows_count. 
     // 1 дополнительный проход по массиву (суммарная длинна прохода получится rows_count)
     // погоды не сделает.
-    float* tmp_segment_values = malloc(rows_count * sizeof(float));
+    float* tmp_segment_values = (float*) malloc(rows_count * sizeof(float));
+    struct class_data* classes_elements_data = (struct class_data*) calloc(classes_count, sizeof(struct class_data));
     
     for (row_index = 0; row_index < rows_count - 1; row_index++) {
         if (feature_values[row_index].class != feature_values[row_index + 1].class) {
             // Конец отрезка устанавливаем как середину между текущим и следующим элементами.
             tmp_segment.end = (feature_values[row_index].feature_value + feature_values[row_index + 1].feature_value)/2;
             // Сохраняем количество элементов отрезка.
-            tmp_segment.values_count = segment_values_count;
+            tmp_segment.values_count = segment_value_index;
             // При базовом разбиении отрезок содержит только элементы, принадлежащие его классу.
-            tmp_segment.class_elements_count = segment_values_count;
+            tmp_segment.class_elements_count = segment_value_index;
             // Записываем все значения признака на отрезке в соответствующий массив.
-            tmp_segment.values = (float*)malloc(segment_values_count * sizeof(float));
-            for (segment_value_index = 0; segment_value_index < segment_values_count; segment_value_index++) {
+            tmp_segment.values = (float*)malloc(segment_value_index * sizeof(float));
+            for (segment_value_index = 0; segment_value_index < segment_value_index; segment_value_index++) {
                 tmp_segment.values[segment_value_index] = tmp_segment_values[segment_value_index];
             }
             // Записываем класс элементов отрезка.
@@ -107,31 +120,89 @@ void binarize_by_stat(struct feature_value_class* feature_values, int rows_count
             
             // Начинаем следующий отрезок.
             tmp_segment.start = tmp_segment.end;
-            segment_values_count = 0;
+            segment_value_index = 0;
         }
-        tmp_segment_values[segment_values_count] = feature_values[row_index].feature_value;
-        segment_values_count++;
+        tmp_segment_values[segment_value_index] = feature_values[row_index].feature_value;
+        for (class_index = 0; class_index < classes_count; class_index++) {
+            if (classes_elements_data[class_index].class == 0) {
+                classes_elements_data[class_index].class = feature_values[row_index].class;
+                classes_elements_data[class_index].elements_count++;
+                break;
+            } else if (classes_elements_data[class_index].class == feature_values[row_index].class) {
+                classes_elements_data[class_index].elements_count++;
+                break;
+            }
+        }
+        segment_value_index++;
     }
     // Не забываем сохранить последний отрезок.
     tmp_segment.end = INFINITY;
-    tmp_segment.values_count = segment_values_count;
-    tmp_segment.class_elements_count = segment_values_count;
-    tmp_segment.values = (float*)malloc(segment_values_count * sizeof(float));
-    for (segment_value_index = 0; segment_value_index < segment_values_count; segment_value_index++) {
+    tmp_segment.values_count = segment_value_index;
+    tmp_segment.class_elements_count = segment_value_index;
+    tmp_segment.values = (float*)malloc(segment_value_index * sizeof(float));
+    for (segment_value_index = 0; segment_value_index < segment_value_index; segment_value_index++) {
         tmp_segment.values[segment_value_index] = tmp_segment_values[segment_value_index];
     }
     tmp_segment.class = feature_values[row_index].class;
+    for (class_index = 0; class_index < classes_count; class_index++) {
+        if (classes_elements_data[class_index].class == 0) {
+            classes_elements_data[class_index].class = feature_values[row_index].class;
+            classes_elements_data[class_index].elements_count++;
+            break;
+        } else if (classes_elements_data[class_index].class == feature_values[row_index].class) {
+            classes_elements_data[class_index].elements_count++;
+            break;
+        }
+    }
     (*result)[segment_index] = tmp_segment;
-    segment_index++;
-    
+    segments_count = segment_index + 1;
     /* Проверка результатов разбиения */
-    for (index = 0; index < segment_index; index++) {
+    printf("Текущее разбиение:\n");
+    for (index = 0; index < segments_count; index++) {
         printf("Segment: [%f, %f], class = %d\n", (*result)[index].start, 
                                                   (*result)[index].end,
                                                   (*result)[index].class);
     }
-    
+    /* Проверка подсчёта количества элементов в каждом классе */
+    /*printf("Elements of %d class: %d\n", classes_elements_data[0].class, classes_elements_data[0].elements_count);
+    printf("Elements of %d class: %d\n", classes_elements_data[1].class, classes_elements_data[1].elements_count);
     free(tmp_segment_values);
+     */
+    
+    // Оценка информативности текущего разбиения.
+    /*int* c_elements_count, int* c_f_elements_count,
+   int classes_count,
+   int c_total_elements, int c_f_total_elements*/
+    int* c_elements_count = (int*) malloc(segments_count * sizeof(int));
+    int* c_f_elements_count = (int*) malloc(segments_count * sizeof(int));
+    
+    for (segment_index = 0; segment_index < segments_count; segment_index++) {
+        c_f_elements_count[segment_index] = (*result)[segment_index].class_elements_count;
+    }
+    for (class_index = 0; class_index < classes_count; class_index++) {
+        c_elements_count[class_index] = classes_elements_data[class_index].elements_count;
+    }
+    
+    float segments_selfdescriptiveness;
+    
+    // Пока для 2-х классов
+    printf("\nОценка информативности отрезков:\n");
+    for (segment_index = 0; segment_index < segments_count; segment_index++) {
+        
+        if (classes_elements_data[0].class == (*result)[segment_index].class) {
+            segments_selfdescriptiveness = statistical_descriptiveness(classes_elements_data[0].elements_count, // Всего элементов того же класса, что и класс, соответствующий сегменту
+                                                                       (*result)[segment_index].class_elements_count,
+                                                                       classes_elements_data[1].elements_count,
+                                                                       (*result)[segment_index].values_count - (*result)[segment_index].class_elements_count);
+        } else {
+            segments_selfdescriptiveness = statistical_descriptiveness(classes_elements_data[1].elements_count, // Всего элементов того же класса, что и класс, соответствующий сегменту
+                                                                       (*result)[segment_index].class_elements_count,
+                                                                       classes_elements_data[0].elements_count,
+                                                                       (*result)[segment_index].values_count - (*result)[segment_index].class_elements_count);
+
+        }
+        printf("Информативность отрезка [%f, %f] = %f\n", (*result)[segment_index].start, (*result)[segment_index].end, segments_selfdescriptiveness);
+    }  
     
     // Далее выполняем слияние троек сегментов пока информативность 
     // их объединений больше, чем информативность их по отдельности.

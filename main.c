@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
     data[9].class = 2;
     
     struct segment_full_f* result;
-    binarize_by_stat((struct feature_value_class*)data, 10, &result);
+    binarize_by_stat((struct feature_value_class*)data, 10, 2, &result);
     
     
     return (EXIT_SUCCESS);

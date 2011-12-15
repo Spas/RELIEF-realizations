@@ -28,7 +28,7 @@ struct feature_value_class {
     int class;
 };
 
-void binarize_by_stat(struct feature_value_class* feature_values, int rows_count, struct segment_full_f** result);
+void binarize_by_stat(struct feature_value_class* feature_values, int rows_count, int classes_count, struct segment_full_f** result);
 
 
 #ifdef	__cplusplus
